@@ -50,7 +50,7 @@ jobs:
           fi
 
       - name: Install Snowflake CLI
-        uses: snowflakedb/snowflake-cli-action@v1.8
+        uses: snowflakedb/snowflake-cli-action@v1.5
         with:
           cli-version: latest
 
