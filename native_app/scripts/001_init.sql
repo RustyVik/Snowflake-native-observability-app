@@ -184,14 +184,17 @@ BEGIN
     token_estimate,
     metadata
   )
-  VALUES (
+  SELECT
     :new_event_id,
     :rule_name,
     :model_name,
     COALESCE(:call_status, 'SIMULATED'),
     :token_estimate,
-    COALESCE(:metadata, OBJECT_CONSTRUCT('source','sp_record_cortex_call_audit'))
-  );
+    IFF(
+      :metadata IS NULL,
+      OBJECT_CONSTRUCT('source','sp_record_cortex_call_audit'),
+      :metadata
+    );
 
   RETURN :new_event_id;
 END;
