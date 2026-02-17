@@ -51,6 +51,23 @@ Cortex-first Snowflake Native App scaffold for Data Quality + Observability pari
 - Rollback checklist: `docs/rollback-checklist.md`
 - Single ordered deployment script: `deploy_all.sql` (SnowSQL/CLI)
 
+## GitHub Actions CD Prerequisites
+
+The workflow at `.github/workflows/cd-deploy.yml` requires these repository **Secrets**:
+
+- `SNOWFLAKE_ACCOUNT`
+- `SNOWFLAKE_USER`
+- `SNOWFLAKE_PASSWORD`
+
+Optional repository **Variables** for environment overrides:
+
+- `SNOWFLAKE_DATABASE_STAGING` (default: `NATIVE_OBS`)
+- `SNOWFLAKE_SCHEMA_STAGING` (default: `PROD`)
+- `SNOWFLAKE_DATABASE_PROD` (default: `NATIVE_OBS`)
+- `SNOWFLAKE_SCHEMA_PROD` (default: `PROD`)
+
+If Variables are not set, workflow defaults are used.
+
 ## Notes
 
 This project is now implemented through Sprint 4 baseline and can be extended for production hardening per environment.
