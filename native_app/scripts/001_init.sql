@@ -103,7 +103,7 @@ BEGIN
   FROM APP_CORE.cost_guardrails
   WHERE is_enabled = TRUE;
 
-  SELECT COALESCE(TRY_TO_BOOLEAN(value), TRUE)
+  SELECT COALESCE(TRY_TO_BOOLEAN(TO_VARCHAR(value)), TRUE)
     INTO :enforce_gate
   FROM APP_CORE.app_config
   WHERE key = 'enforce_activation_gate';
