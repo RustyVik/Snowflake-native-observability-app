@@ -318,7 +318,7 @@ BEGIN
       '; DataType=', rec.data_type,
       '; Sample=', COALESCE(rec.sample_value, 'NULL')
     );
-    response := SNOWFLAKE.CORTEX.COMPLETE(:model_name, :prompt);
+    response := SNOWFLAKE.CORTEX.COMPLETE('snowflake-arctic', :prompt);
 
     inferred_label :=
       CASE

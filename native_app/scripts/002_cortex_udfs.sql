@@ -195,7 +195,7 @@ $$
            CONCAT('Validate whether this is a valid email address and explain briefly: ', COALESCE(input_value, 'NULL')) AS prompt
   ),
   cortex AS (
-    SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE(model_name, prompt) AS raw_response
+    SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE('snowflake-arctic', prompt) AS raw_response
     FROM ctx
   )
   SELECT TO_VARIANT(OBJECT_CONSTRUCT(
@@ -218,7 +218,7 @@ $$
            CONCAT('Validate whether this appears to be a valid phone number and explain briefly: ', COALESCE(input_value, 'NULL')) AS prompt
   ),
   cortex AS (
-    SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE(model_name, prompt) AS raw_response
+    SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE('snowflake-arctic', prompt) AS raw_response
     FROM ctx
   )
   SELECT TO_VARIANT(OBJECT_CONSTRUCT(
@@ -241,7 +241,7 @@ $$
            CONCAT('Assess quality of this personal name and explain briefly: ', COALESCE(input_value, 'NULL')) AS prompt
   ),
   cortex AS (
-    SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE(model_name, prompt) AS raw_response
+    SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE('snowflake-arctic', prompt) AS raw_response
     FROM ctx
   )
   SELECT TO_VARIANT(OBJECT_CONSTRUCT(
@@ -264,7 +264,7 @@ $$
            CONCAT('Assess quality and completeness of this address and explain briefly: ', COALESCE(input_value, 'NULL')) AS prompt
   ),
   cortex AS (
-    SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE(model_name, prompt) AS raw_response
+    SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE('snowflake-arctic', prompt) AS raw_response
     FROM ctx
   )
   SELECT TO_VARIANT(OBJECT_CONSTRUCT(
@@ -287,7 +287,7 @@ $$
            CONCAT('Classify whether this text contains personally identifiable information and explain briefly: ', COALESCE(input_value, 'NULL')) AS prompt
   ),
   cortex AS (
-    SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE(model_name, prompt) AS raw_response
+    SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE('snowflake-arctic', prompt) AS raw_response
     FROM ctx
   )
   SELECT TO_VARIANT(OBJECT_CONSTRUCT(
@@ -310,7 +310,7 @@ $$
            CONCAT('Classify this value into a business domain such as customer, finance, product, operations. Value: ', COALESCE(input_value, 'NULL')) AS prompt
   ),
   cortex AS (
-    SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE(model_name, prompt) AS raw_response
+    SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE('snowflake-arctic', prompt) AS raw_response
     FROM ctx
   )
   SELECT TO_VARIANT(OBJECT_CONSTRUCT(
@@ -333,7 +333,7 @@ $$
            CONCAT('Return a normalized reason code for this value quality assessment: ', COALESCE(input_value, 'NULL')) AS prompt
   ),
   cortex AS (
-    SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE(model_name, prompt) AS raw_response
+    SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE('snowflake-arctic', prompt) AS raw_response
     FROM ctx
   )
   SELECT TO_VARIANT(OBJECT_CONSTRUCT(
