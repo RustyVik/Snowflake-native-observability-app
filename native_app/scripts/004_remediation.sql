@@ -117,7 +117,7 @@ BEGIN
   ORDER BY i.opened_at DESC
   LIMIT 1;
 
-  IF latest_incident_id IS NULL THEN
+  IF (latest_incident_id IS NULL) THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'FAILED',
       'reason', 'NO_OPEN_INCIDENT_FOR_SOURCE',
@@ -175,7 +175,7 @@ BEGIN
   FROM remediation_tasks
   WHERE task_id = :task_id;
 
-  IF old_status IS NULL THEN
+  IF (old_status IS NULL) THEN
     RETURN OBJECT_CONSTRUCT('status', 'FAILED', 'reason', 'TASK_NOT_FOUND', 'task_id', :task_id);
   END IF;
 
@@ -322,7 +322,7 @@ BEGIN
   ORDER BY rt.created_at DESC
   LIMIT 1;
 
-  IF latest_task_id IS NULL THEN
+  IF (latest_task_id IS NULL) THEN
     RETURN OBJECT_CONSTRUCT('status', 'FAILED', 'reason', 'NO_TASK_FOUND_FOR_SOURCE', 'source', :source_name);
   END IF;
 

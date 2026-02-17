@@ -479,7 +479,7 @@ BEGIN
     )
   );
 
-  IF baseline_id IS NULL THEN
+  IF (baseline_id IS NULL) THEN
     RETURN OBJECT_CONSTRUCT('status', 'FAILED', 'reason', 'NO_BASELINE_FOUND');
   END IF;
 

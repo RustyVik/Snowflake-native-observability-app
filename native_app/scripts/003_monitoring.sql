@@ -250,7 +250,7 @@ BEGIN
     (SELECT profile_run_id FROM profile_runs ORDER BY started_at DESC LIMIT 1)
   );
 
-  IF run_id IS NULL THEN
+  IF (run_id IS NULL) THEN
     RETURN OBJECT_CONSTRUCT('status', 'FAILED', 'reason', 'NO_PROFILE_RUN_AVAILABLE');
   END IF;
 
@@ -393,7 +393,7 @@ BEGIN
   ORDER BY classified_at DESC
   LIMIT 1;
 
-  IF previous_label IS NULL THEN
+  IF (previous_label IS NULL) THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'FAILED',
       'reason', 'COLUMN_NOT_CLASSIFIED',
@@ -577,7 +577,7 @@ BEGIN
   ORDER BY created_at DESC
   LIMIT 1;
 
-  IF latest_alert_id IS NULL THEN
+  IF (latest_alert_id IS NULL) THEN
     RETURN OBJECT_CONSTRUCT('status', 'NOOP', 'reason', 'NO_OPEN_ALERT_FOUND');
   END IF;
 

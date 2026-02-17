@@ -368,7 +368,7 @@ BEGIN
     AND is_active = TRUE
   LIMIT 1;
 
-  IF model_name IS NULL THEN
+  IF (model_name IS NULL) THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'ERROR',
       'message', CONCAT('Unknown or inactive rule: ', COALESCE(:rule_name, 'NULL'))
