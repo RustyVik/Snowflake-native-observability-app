@@ -64,6 +64,8 @@ jobs:
           user = "${SNOWFLAKE_USER}"
           password = "${SNOWFLAKE_PASSWORD}"
           EOF
+          chmod 700 "$HOME/.snowflake"
+          chmod 600 "$HOME/.snowflake/config.toml"
 
       - name: Validate Snowflake connection
         run: |
