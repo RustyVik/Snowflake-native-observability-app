@@ -6,3 +6,20 @@ artifacts:
   readme: ../README.md
 configuration:
   log_level: INFO
+  deploy_environment: prod
+  branch_environment_map:
+    staging: staging
+    main: prod
+  target_database: NATIVE_OBS
+  target_schema: PROD
+  environments:
+    prod:
+      target_database: NATIVE_OBS
+      target_schema: PROD
+    staging:
+      target_database: NATIVE_OBS
+      target_schema: STG
+  snowflake_connection_secrets:
+    account: SNOWFLAKE_ACCOUNT
+    user: SNOWFLAKE_USER
+    password: SNOWFLAKE_PASSWORD
