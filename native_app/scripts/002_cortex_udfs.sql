@@ -468,7 +468,7 @@ BEGIN
       OR COALESCE(ra.approval_status, 'PENDING') <> 'APPROVED'
     );
 
-  IF unresolved_count > 0 THEN
+  IF (unresolved_count > 0) THEN
     INSERT INTO APP_DQ.rule_promotion_audit(pack_name, target_object, promoted_rule_count, status, details)
     VALUES (
       :pack_name,
