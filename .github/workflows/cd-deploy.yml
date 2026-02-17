@@ -56,16 +56,18 @@ jobs:
       - name: Configure Snowflake CLI connection
         run: |
           mkdir -p "$HOME/.snowflake"
+          printf "%s" "${SNOWFLAKE_PAT}" > "$HOME/.snowflake/pat_token.txt"
           cat > "$HOME/.snowflake/config.toml" <<EOF
           default_connection_name = "OBSERVABILITYAPP"
 
           [connections.OBSERVABILITYAPP]
           account = "${SNOWFLAKE_ACCOUNT}"
           user = "${SNOWFLAKE_USER}"
-          authenticator = "oauth"
-          token = "${SNOWFLAKE_PAT}"
+          authenticator = "PROGRAMMATIC_ACCESS_TOKEN"
+          token_file_path = "$HOME/.snowflake/pat_token.txt"
           EOF
           chmod 700 "$HOME/.snowflake"
+          chmod 600 "$HOME/.snowflake/pat_token.txt"
           chmod 600 "$HOME/.snowflake/config.toml"
 
       - name: Validate Snowflake connection
