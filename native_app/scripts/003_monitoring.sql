@@ -152,7 +152,10 @@ BEGIN
   VALUES (:run_id, :target_schema, :target_table, 'RUNNING');
 
   sql_cmd := 'SELECT COUNT(*) FROM ' || table_ref;
-  EXECUTE IMMEDIATE :sql_cmd INTO :row_count;
+  EXECUTE IMMEDIATE :sql_cmd;
+  SELECT $1
+    INTO :row_count
+  FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
   FOR rec IN (
     SELECT column_name, data_type, ordinal_position
@@ -164,12 +167,18 @@ BEGIN
     sql_cmd := 'SELECT COUNT(*), COUNT_IF(' ||
       '"' || REPLACE(rec.column_name, '"', '""') || '" IS NULL), COUNT(DISTINCT ' ||
       '"' || REPLACE(rec.column_name, '"', '""') || '") FROM ' || table_ref;
-    EXECUTE IMMEDIATE :sql_cmd INTO :col_row_count, :col_null_count, :col_distinct_count;
+    EXECUTE IMMEDIATE :sql_cmd;
+    SELECT $1, $2, $3
+      INTO :col_row_count, :col_null_count, :col_distinct_count
+    FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
     sql_cmd := 'SELECT TO_VARCHAR(' ||
       '"' || REPLACE(rec.column_name, '"', '""') || '") FROM ' || table_ref ||
       ' WHERE ' || '"' || REPLACE(rec.column_name, '"', '""') || '" IS NOT NULL LIMIT 1';
-    EXECUTE IMMEDIATE :sql_cmd INTO :col_sample;
+    EXECUTE IMMEDIATE :sql_cmd;
+    SELECT $1
+      INTO :col_sample
+    FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
     INSERT INTO profile_column_stats(
       profile_run_id,
