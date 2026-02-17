@@ -396,13 +396,13 @@ BEGIN
   END IF;
 
   SELECT CASE
-    WHEN normalized_rule = 'udf_dq_email_valid' THEN APP_DQ.udf_dq_email_valid(:input_value)
-    WHEN normalized_rule = 'udf_dq_phone_valid' THEN APP_DQ.udf_dq_phone_valid(:input_value)
-    WHEN normalized_rule = 'udf_dq_name_quality' THEN APP_DQ.udf_dq_name_quality(:input_value)
-    WHEN normalized_rule = 'udf_dq_address_quality' THEN APP_DQ.udf_dq_address_quality(:input_value)
-    WHEN normalized_rule = 'udf_dq_pii_detect' THEN APP_DQ.udf_dq_pii_detect(:input_value)
-    WHEN normalized_rule = 'udf_dq_domain_classify' THEN APP_DQ.udf_dq_domain_classify(:input_value)
-    WHEN normalized_rule = 'udf_dq_reason_code' THEN APP_DQ.udf_dq_reason_code(:input_value)
+    WHEN :normalized_rule = 'udf_dq_email_valid' THEN APP_DQ.udf_dq_email_valid(:input_value)
+    WHEN :normalized_rule = 'udf_dq_phone_valid' THEN APP_DQ.udf_dq_phone_valid(:input_value)
+    WHEN :normalized_rule = 'udf_dq_name_quality' THEN APP_DQ.udf_dq_name_quality(:input_value)
+    WHEN :normalized_rule = 'udf_dq_address_quality' THEN APP_DQ.udf_dq_address_quality(:input_value)
+    WHEN :normalized_rule = 'udf_dq_pii_detect' THEN APP_DQ.udf_dq_pii_detect(:input_value)
+    WHEN :normalized_rule = 'udf_dq_domain_classify' THEN APP_DQ.udf_dq_domain_classify(:input_value)
+    WHEN :normalized_rule = 'udf_dq_reason_code' THEN APP_DQ.udf_dq_reason_code(:input_value)
     ELSE NULL
   END
   INTO :result;
