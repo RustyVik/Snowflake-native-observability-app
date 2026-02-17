@@ -24,10 +24,9 @@ jobs:
       contents: read
 
     env:
-      SNOWFLAKE_CONNECTIONS_OBSERVABILITYAPP_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-      SNOWFLAKE_CONNECTIONS_OBSERVABILITYAPP_USER: ${{ secrets.SNOWFLAKE_USER }}
-      SNOWFLAKE_CONNECTIONS_OBSERVABILITYAPP_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-      SNOWFLAKE_DEFAULT_CONNECTION_NAME: OBSERVABILITYAPP
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
 
     steps:
       - name: Checkout repository
@@ -53,6 +52,18 @@ jobs:
         uses: snowflakedb/snowflake-cli-action@v1.5
         with:
           cli-version: latest
+
+      - name: Configure Snowflake CLI connection
+        run: |
+          mkdir -p "$HOME/.snowflake"
+          cat > "$HOME/.snowflake/config.toml" <<EOF
+          default_connection_name = "OBSERVABILITYAPP"
+
+          [connections.OBSERVABILITYAPP]
+          account = "${SNOWFLAKE_ACCOUNT}"
+          user = "${SNOWFLAKE_USER}"
+          password = "${SNOWFLAKE_PASSWORD}"
+          EOF
 
       - name: Validate Snowflake connection
         run: |
