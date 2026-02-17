@@ -52,7 +52,7 @@ BEGIN
   FROM APP_ENGINE.incidents
   WHERE incident_id = :incident_id;
 
-  IF NOT incident_exists THEN
+  IF (NOT incident_exists) THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'FAILED',
       'reason', 'INCIDENT_NOT_FOUND',
@@ -147,7 +147,7 @@ BEGIN
 
   updated_rows := SQLROWCOUNT;
 
-  IF updated_rows = 0 THEN
+  IF (updated_rows = 0) THEN
     RETURN OBJECT_CONSTRUCT('status', 'FAILED', 'reason', 'TASK_NOT_FOUND', 'task_id', :task_id);
   END IF;
 
@@ -186,7 +186,7 @@ BEGIN
    OR (old_status IN ('CANCELLED', 'COMPLETED') AND normalized_status = old_status)
    OR (old_status = normalized_status);
 
-  IF NOT is_valid_transition THEN
+  IF (NOT is_valid_transition) THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'FAILED',
       'reason', 'INVALID_STATUS_TRANSITION',
@@ -204,7 +204,7 @@ BEGIN
   INSERT INTO task_status_history(task_id, old_status, new_status, notes)
   VALUES (:task_id, :old_status, :normalized_status, :notes);
 
-  IF notes IS NOT NULL THEN
+  IF (notes IS NOT NULL) THEN
     INSERT INTO remediation_comments(task_id, comment_text)
     VALUES (:task_id, :notes);
   END IF;
@@ -225,10 +225,12 @@ AS
 $$
 DECLARE
   status_result VARIANT;
+  status_result_status STRING;
 BEGIN
   status_result := (CALL sp_update_remediation_status(:task_id, 'COMPLETED', :resolution_notes));
+  status_result_status := COALESCE(status_result:"status"::STRING, 'UNKNOWN');
 
-  IF status_result:"status"::STRING <> 'SUCCESS' THEN
+  IF (status_result_status <> 'SUCCESS') THEN
     RETURN status_result;
   END IF;
 
