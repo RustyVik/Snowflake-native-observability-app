@@ -193,9 +193,9 @@ BEGIN
     )
     VALUES (
       :run_id,
-      rec.column_name,
-      rec.data_type,
-      rec.ordinal_position,
+      :rec.column_name,
+      :rec.data_type,
+      :rec.ordinal_position,
       :col_row_count,
       :col_null_count,
       IFF(:col_row_count = 0, 0, :col_null_count / :col_row_count),
