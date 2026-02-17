@@ -145,8 +145,11 @@ DECLARE
   col_null_count NUMBER;
   col_distinct_count NUMBER;
   col_sample STRING;
-BEGIN
-  table_ref := '"' || REPLACE(:target_schema, '"', '""') || '"."' || REPLACE(:target_table, '"', '""') || '"';
+  col_name STRING;
+  col_data_type STRING;
+    current_column_name STRING;
+    current_data_type STRING;
+    current_ordinal_position NUMBER;
 
   INSERT INTO profile_runs(profile_run_id, target_schema, target_table, status)
   VALUES (:run_id, :target_schema, :target_table, 'RUNNING');
@@ -164,17 +167,21 @@ BEGIN
       AND TABLE_NAME = UPPER(:target_table)
     ORDER BY ordinal_position
   ) DO
-    sql_cmd := 'SELECT COUNT(*), COUNT_IF(' ||
-      '"' || REPLACE(rec.column_name, '"', '""') || '" IS NULL), COUNT(DISTINCT ' ||
-      '"' || REPLACE(rec.column_name, '"', '""') || '") FROM ' || table_ref;
+    col_name := rec.column_name;
+    col_data_type := rec.data_type;
+      current_column_name := rec.column_name;
+      current_data_type := rec.data_type;
+      current_ordinal_position := rec.ordinal_position;
+      '"' || REPLACE(col_name, '"', '""') || '" IS NULL), COUNT(DISTINCT ' ||
+      '"' || REPLACE(col_name, '"', '""') || '") FROM ' || table_ref;
     EXECUTE IMMEDIATE :sql_cmd;
     SELECT $1, $2, $3
       INTO :col_row_count, :col_null_count, :col_distinct_count
     FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
     sql_cmd := 'SELECT TO_VARCHAR(' ||
-      '"' || REPLACE(rec.column_name, '"', '""') || '") FROM ' || table_ref ||
-      ' WHERE ' || '"' || REPLACE(rec.column_name, '"', '""') || '" IS NOT NULL LIMIT 1';
+      '"' || REPLACE(col_name, '"', '""') || '") FROM ' || table_ref ||
+      ' WHERE ' || '"' || REPLACE(col_name, '"', '""') || '" IS NOT NULL LIMIT 1';
     EXECUTE IMMEDIATE :sql_cmd;
     SELECT $1
       INTO :col_sample
@@ -193,11 +200,11 @@ BEGIN
     )
     VALUES (
       :run_id,
-      :rec.column_name,
-      :rec.data_type,
-      :rec.ordinal_position,
-      :col_row_count,
-      :col_null_count,
+      :col_name,
+      :col_data_type,
+        :current_column_name,
+        :current_data_type,
+        :current_ordinal_position,
       IFF(:col_row_count = 0, 0, :col_null_count / :col_row_count),
       :col_distinct_count,
       :col_sample
