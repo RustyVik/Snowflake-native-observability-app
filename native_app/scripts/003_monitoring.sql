@@ -147,9 +147,9 @@ DECLARE
   col_sample STRING;
   col_name STRING;
   col_data_type STRING;
-    current_column_name STRING;
-    current_data_type STRING;
-    current_ordinal_position NUMBER;
+  col_ordinal NUMBER;
+BEGIN
+  table_ref := '"' || target_schema || '"."' || target_table || '"';
 
   INSERT INTO profile_runs(profile_run_id, target_schema, target_table, status)
   VALUES (:run_id, :target_schema, :target_table, 'RUNNING');
@@ -169,10 +169,10 @@ DECLARE
   ) DO
     col_name := rec.column_name;
     col_data_type := rec.data_type;
-      current_column_name := rec.column_name;
-      current_data_type := rec.data_type;
-      current_ordinal_position := rec.ordinal_position;
-      '"' || REPLACE(col_name, '"', '""') || '" IS NULL), COUNT(DISTINCT ' ||
+    col_ordinal := rec.ordinal_position;
+
+    sql_cmd := 'SELECT COUNT(*), SUM(IFF(' ||
+      '"' || REPLACE(col_name, '"', '""') || '" IS NULL, 1, 0)), COUNT(DISTINCT ' ||
       '"' || REPLACE(col_name, '"', '""') || '") FROM ' || table_ref;
     EXECUTE IMMEDIATE :sql_cmd;
     SELECT $1, $2, $3
@@ -187,28 +187,18 @@ DECLARE
       INTO :col_sample
     FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
-    INSERT INTO profile_column_stats(
-      profile_run_id,
-      column_name,
-      data_type,
-      ordinal_position,
-      row_count,
-      null_count,
-      null_ratio,
-      distinct_count,
-      sample_value
-    )
-    VALUES (
+    INSERT INTO profile_column_stats
+      (profile_run_id, column_name, data_type, ordinal_position, row_count, null_count, null_ratio, distinct_count, sample_value)
+    SELECT
       :run_id,
       :col_name,
       :col_data_type,
-        :current_column_name,
-        :current_data_type,
-        :current_ordinal_position,
+      :col_ordinal,
+      :col_row_count,
+      :col_null_count,
       IFF(:col_row_count = 0, 0, :col_null_count / :col_row_count),
       :col_distinct_count,
-      :col_sample
-    );
+      :col_sample;
 
     profiled_columns := profiled_columns + 1;
   END FOR;
