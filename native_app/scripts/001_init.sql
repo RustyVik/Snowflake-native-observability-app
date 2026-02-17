@@ -145,7 +145,7 @@ BEGIN
   gate_status := gate_result:"status"::STRING;
   enforce_gate := COALESCE(gate_result:"enforce_activation_gate"::BOOLEAN, TRUE);
 
-  IF enforce_gate AND gate_status <> 'PASS' THEN
+  IF (enforce_gate AND gate_status <> 'PASS') THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'BLOCKED',
       'reason', 'CORTEX_PREREQUISITES_FAILED',
@@ -343,10 +343,10 @@ BEGIN
   IF NOT is_allowed THEN
     status := 'BLOCKED';
     blocked_reason := 'MODEL_NOT_ALLOWLISTED';
-  ELSEIF daily_budget IS NOT NULL AND (consumed_today + estimated_tokens) > daily_budget THEN
+  ELSEIF (daily_budget IS NOT NULL AND (consumed_today + estimated_tokens) > daily_budget) THEN
     status := 'BLOCKED';
     blocked_reason := 'DAILY_BUDGET_EXCEEDED';
-  ELSEIF monthly_budget IS NOT NULL AND (consumed_month + estimated_tokens) > monthly_budget THEN
+  ELSEIF (monthly_budget IS NOT NULL AND (consumed_month + estimated_tokens) > monthly_budget) THEN
     status := 'BLOCKED';
     blocked_reason := 'MONTHLY_BUDGET_EXCEEDED';
   END IF;
