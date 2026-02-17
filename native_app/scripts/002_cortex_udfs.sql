@@ -198,13 +198,13 @@ $$
     SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE(model_name, prompt) AS raw_response
     FROM ctx
   )
-  SELECT OBJECT_CONSTRUCT(
+  SELECT TO_VARIANT(OBJECT_CONSTRUCT(
     'status', IFF(REGEXP_LIKE(COALESCE(input_value, ''), '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'), 'PASS', 'FAIL'),
     'confidence', IFF(REGEXP_LIKE(COALESCE(input_value, ''), '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'), 0.95, 0.60),
     'reason_code', IFF(input_value IS NULL OR TRIM(input_value) = '', 'INPUT_EMPTY', IFF(REGEXP_LIKE(COALESCE(input_value, ''), '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'), 'EMAIL_VALID', 'EMAIL_INVALID_FORMAT')),
     'model', model_name,
     'explanation', raw_response
-  )
+  ))
   FROM cortex
 $$;
 
@@ -221,13 +221,13 @@ $$
     SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE(model_name, prompt) AS raw_response
     FROM ctx
   )
-  SELECT OBJECT_CONSTRUCT(
+  SELECT TO_VARIANT(OBJECT_CONSTRUCT(
     'status', IFF(REGEXP_LIKE(COALESCE(input_value, ''), '^[+]?[(]?[0-9]{1,4}[)]?[-\\s./0-9]*$') AND LENGTH(REGEXP_REPLACE(COALESCE(input_value,''), '[^0-9]', '')) BETWEEN 7 AND 15, 'PASS', 'FAIL'),
     'confidence', IFF(REGEXP_LIKE(COALESCE(input_value, ''), '^[+]?[(]?[0-9]{1,4}[)]?[-\\s./0-9]*$') AND LENGTH(REGEXP_REPLACE(COALESCE(input_value,''), '[^0-9]', '')) BETWEEN 7 AND 15, 0.90, 0.55),
     'reason_code', IFF(input_value IS NULL OR TRIM(input_value) = '', 'INPUT_EMPTY', IFF(REGEXP_LIKE(COALESCE(input_value, ''), '^[+]?[(]?[0-9]{1,4}[)]?[-\\s./0-9]*$') AND LENGTH(REGEXP_REPLACE(COALESCE(input_value,''), '[^0-9]', '')) BETWEEN 7 AND 15, 'PHONE_VALID', 'PHONE_INVALID_FORMAT')),
     'model', model_name,
     'explanation', raw_response
-  )
+  ))
   FROM cortex
 $$;
 
@@ -244,13 +244,13 @@ $$
     SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE(model_name, prompt) AS raw_response
     FROM ctx
   )
-  SELECT OBJECT_CONSTRUCT(
+  SELECT TO_VARIANT(OBJECT_CONSTRUCT(
     'status', IFF(input_value IS NOT NULL AND LENGTH(TRIM(input_value)) >= 2, 'PASS', 'FAIL'),
     'confidence', IFF(input_value IS NOT NULL AND LENGTH(TRIM(input_value)) >= 2, 0.80, 0.50),
     'reason_code', IFF(input_value IS NULL OR TRIM(input_value) = '', 'INPUT_EMPTY', IFF(LENGTH(TRIM(input_value)) < 2, 'NAME_TOO_SHORT', 'NAME_QUALITY_OK')),
     'model', model_name,
     'explanation', raw_response
-  )
+  ))
   FROM cortex
 $$;
 
@@ -267,13 +267,13 @@ $$
     SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE(model_name, prompt) AS raw_response
     FROM ctx
   )
-  SELECT OBJECT_CONSTRUCT(
+  SELECT TO_VARIANT(OBJECT_CONSTRUCT(
     'status', IFF(input_value IS NOT NULL AND LENGTH(TRIM(input_value)) >= 8, 'PASS', 'FAIL'),
     'confidence', IFF(input_value IS NOT NULL AND LENGTH(TRIM(input_value)) >= 8, 0.78, 0.52),
     'reason_code', IFF(input_value IS NULL OR TRIM(input_value) = '', 'INPUT_EMPTY', IFF(LENGTH(TRIM(input_value)) < 8, 'ADDRESS_INCOMPLETE', 'ADDRESS_QUALITY_OK')),
     'model', model_name,
     'explanation', raw_response
-  )
+  ))
   FROM cortex
 $$;
 
@@ -290,13 +290,13 @@ $$
     SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE(model_name, prompt) AS raw_response
     FROM ctx
   )
-  SELECT OBJECT_CONSTRUCT(
+  SELECT TO_VARIANT(OBJECT_CONSTRUCT(
     'status', IFF(REGEXP_LIKE(COALESCE(input_value, ''), '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}') OR REGEXP_LIKE(COALESCE(input_value, ''), '[0-9]{3}-[0-9]{2}-[0-9]{4}'), 'FAIL', 'PASS'),
     'confidence', IFF(REGEXP_LIKE(COALESCE(input_value, ''), '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}') OR REGEXP_LIKE(COALESCE(input_value, ''), '[0-9]{3}-[0-9]{2}-[0-9]{4}'), 0.88, 0.68),
     'reason_code', IFF(input_value IS NULL OR TRIM(input_value) = '', 'INPUT_EMPTY', IFF(REGEXP_LIKE(COALESCE(input_value, ''), '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}') OR REGEXP_LIKE(COALESCE(input_value, ''), '[0-9]{3}-[0-9]{2}-[0-9]{4}'), 'PII_DETECTED', 'PII_NOT_DETECTED')),
     'model', model_name,
     'explanation', raw_response
-  )
+  ))
   FROM cortex
 $$;
 
@@ -313,13 +313,13 @@ $$
     SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE(model_name, prompt) AS raw_response
     FROM ctx
   )
-  SELECT OBJECT_CONSTRUCT(
+  SELECT TO_VARIANT(OBJECT_CONSTRUCT(
     'status', 'PASS',
     'confidence', 0.70,
     'reason_code', 'DOMAIN_CLASSIFIED',
     'model', model_name,
     'explanation', raw_response
-  )
+  ))
   FROM cortex
 $$;
 
@@ -336,13 +336,13 @@ $$
     SELECT model_name, SNOWFLAKE.CORTEX.COMPLETE(model_name, prompt) AS raw_response
     FROM ctx
   )
-  SELECT OBJECT_CONSTRUCT(
+  SELECT TO_VARIANT(OBJECT_CONSTRUCT(
     'status', 'PASS',
     'confidence', 0.65,
     'reason_code', IFF(input_value IS NULL OR TRIM(input_value) = '', 'INPUT_EMPTY', 'REASON_CODE_GENERATED'),
     'model', model_name,
     'explanation', raw_response
-  )
+  ))
   FROM cortex
 $$;
 
