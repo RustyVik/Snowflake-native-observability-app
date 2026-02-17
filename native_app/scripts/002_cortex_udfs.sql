@@ -356,6 +356,7 @@ DECLARE
   model_name STRING;
   token_estimate NUMBER DEFAULT 250;
   gate_result VARIANT;
+  gate_status STRING;
   audit_event_id STRING;
   result VARIANT;
 BEGIN
@@ -384,7 +385,9 @@ BEGIN
     )
   );
 
-  IF gate_result:"status"::STRING = 'BLOCKED' THEN
+  gate_status := COALESCE(gate_result:"status"::STRING, 'UNKNOWN');
+
+  IF (gate_status = 'BLOCKED') THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'BLOCKED',
       'rule_name', :rule_name,
@@ -392,21 +395,19 @@ BEGIN
     );
   END IF;
 
-  IF normalized_rule = 'udf_dq_email_valid' THEN
-    SELECT APP_DQ.udf_dq_email_valid(:input_value) INTO :result;
-  ELSEIF normalized_rule = 'udf_dq_phone_valid' THEN
-    SELECT APP_DQ.udf_dq_phone_valid(:input_value) INTO :result;
-  ELSEIF normalized_rule = 'udf_dq_name_quality' THEN
-    SELECT APP_DQ.udf_dq_name_quality(:input_value) INTO :result;
-  ELSEIF normalized_rule = 'udf_dq_address_quality' THEN
-    SELECT APP_DQ.udf_dq_address_quality(:input_value) INTO :result;
-  ELSEIF normalized_rule = 'udf_dq_pii_detect' THEN
-    SELECT APP_DQ.udf_dq_pii_detect(:input_value) INTO :result;
-  ELSEIF normalized_rule = 'udf_dq_domain_classify' THEN
-    SELECT APP_DQ.udf_dq_domain_classify(:input_value) INTO :result;
-  ELSEIF normalized_rule = 'udf_dq_reason_code' THEN
-    SELECT APP_DQ.udf_dq_reason_code(:input_value) INTO :result;
-  ELSE
+  SELECT CASE
+    WHEN normalized_rule = 'udf_dq_email_valid' THEN APP_DQ.udf_dq_email_valid(:input_value)
+    WHEN normalized_rule = 'udf_dq_phone_valid' THEN APP_DQ.udf_dq_phone_valid(:input_value)
+    WHEN normalized_rule = 'udf_dq_name_quality' THEN APP_DQ.udf_dq_name_quality(:input_value)
+    WHEN normalized_rule = 'udf_dq_address_quality' THEN APP_DQ.udf_dq_address_quality(:input_value)
+    WHEN normalized_rule = 'udf_dq_pii_detect' THEN APP_DQ.udf_dq_pii_detect(:input_value)
+    WHEN normalized_rule = 'udf_dq_domain_classify' THEN APP_DQ.udf_dq_domain_classify(:input_value)
+    WHEN normalized_rule = 'udf_dq_reason_code' THEN APP_DQ.udf_dq_reason_code(:input_value)
+    ELSE NULL
+  END
+  INTO :result;
+
+  IF (result IS NULL) THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'ERROR',
       'message', CONCAT('Unknown rule: ', COALESCE(:rule_name, 'NULL')),
