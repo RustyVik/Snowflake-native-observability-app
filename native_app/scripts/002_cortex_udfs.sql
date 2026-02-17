@@ -475,7 +475,7 @@ BEGIN
       :target_object,
       0,
       'BLOCKED',
-      OBJECT_CONSTRUCT('reason', 'UNAPPROVED_OR_MISSING_VERSION', 'unresolved_count', unresolved_count)
+      OBJECT_CONSTRUCT('reason', 'UNAPPROVED_OR_MISSING_VERSION', 'unresolved_count', :unresolved_count)
     );
 
     RETURN OBJECT_CONSTRUCT(
@@ -505,7 +505,7 @@ BEGIN
     :target_object,
     :inserted_count,
     'SUCCESS',
-    OBJECT_CONSTRUCT('eligible_count', eligible_count)
+    OBJECT_CONSTRUCT('eligible_count', :eligible_count)
   );
 
   RETURN OBJECT_CONSTRUCT(
