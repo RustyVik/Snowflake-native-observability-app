@@ -305,7 +305,7 @@ DECLARE
   consumed_today NUMBER DEFAULT 0;
   consumed_month NUMBER DEFAULT 0;
   blocked_reason STRING DEFAULT NULL;
-  status STRING DEFAULT 'ALLOW';
+  execution_status STRING DEFAULT 'ALLOW';
 BEGIN
   normalized_model := LOWER(COALESCE(:model_name, ''));
   estimated_tokens := COALESCE(:token_estimate, 0);
@@ -340,18 +340,18 @@ BEGIN
   WHERE DATE_TRUNC('month', invoked_at) = DATE_TRUNC('month', CURRENT_DATE())
     AND COALESCE(call_status, 'UNKNOWN') NOT LIKE 'BLOCKED%';
 
-  IF NOT is_allowed THEN
-    status := 'BLOCKED';
+  IF (NOT is_allowed) THEN
+    execution_status := 'BLOCKED';
     blocked_reason := 'MODEL_NOT_ALLOWLISTED';
   ELSEIF (daily_budget IS NOT NULL AND (consumed_today + estimated_tokens) > daily_budget) THEN
-    status := 'BLOCKED';
+    execution_status := 'BLOCKED';
     blocked_reason := 'DAILY_BUDGET_EXCEEDED';
   ELSEIF (monthly_budget IS NOT NULL AND (consumed_month + estimated_tokens) > monthly_budget) THEN
-    status := 'BLOCKED';
+    execution_status := 'BLOCKED';
     blocked_reason := 'MONTHLY_BUDGET_EXCEEDED';
   END IF;
 
-  IF status = 'BLOCKED' THEN
+  IF (execution_status = 'BLOCKED') THEN
     INSERT INTO APP_AUDIT.cortex_call_audit(
       rule_name,
       model_name,
