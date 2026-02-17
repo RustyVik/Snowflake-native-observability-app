@@ -470,13 +470,12 @@ BEGIN
 
   IF (unresolved_count > 0) THEN
     INSERT INTO APP_DQ.rule_promotion_audit(pack_name, target_object, promoted_rule_count, status, details)
-    VALUES (
+    SELECT
       :pack_name,
       :target_object,
       0,
       'BLOCKED',
-      OBJECT_CONSTRUCT('reason', 'UNAPPROVED_OR_MISSING_VERSION', 'unresolved_count', :unresolved_count)
-    );
+      OBJECT_CONSTRUCT('reason', 'UNAPPROVED_OR_MISSING_VERSION', 'unresolved_count', :unresolved_count);
 
     RETURN OBJECT_CONSTRUCT(
       'status', 'BLOCKED',
@@ -500,13 +499,12 @@ BEGIN
   inserted_count := SQLROWCOUNT;
 
   INSERT INTO APP_DQ.rule_promotion_audit(pack_name, target_object, promoted_rule_count, status, details)
-  VALUES (
+  SELECT
     :pack_name,
     :target_object,
     :inserted_count,
     'SUCCESS',
-    OBJECT_CONSTRUCT('eligible_count', :eligible_count)
-  );
+    OBJECT_CONSTRUCT('eligible_count', :eligible_count);
 
   RETURN OBJECT_CONSTRUCT(
     'status', 'SUCCESS',
