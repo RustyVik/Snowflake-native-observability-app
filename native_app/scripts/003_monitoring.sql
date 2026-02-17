@@ -250,6 +250,8 @@ DECLARE
   prompt_version STRING DEFAULT 'v1';
   token_estimate NUMBER DEFAULT 200;
   gate_result VARIANT;
+  gate_status STRING;
+  gate_reason STRING;
   audit_event_id STRING;
   prompt STRING;
   response STRING;
@@ -277,7 +279,10 @@ BEGIN
       )
     );
 
-    IF gate_result:"status"::STRING = 'BLOCKED' THEN
+    gate_status := COALESCE(gate_result:"status"::STRING, 'UNKNOWN');
+    gate_reason := COALESCE(gate_result:"reason"::STRING, 'BLOCKED');
+
+    IF (gate_status = 'BLOCKED') THEN
       INSERT INTO classification_results(
         profile_run_id,
         column_name,
@@ -298,7 +303,7 @@ BEGIN
         :prompt_version,
         'BLOCKED',
         0,
-        CONCAT('GUARDRAIL_', COALESCE(gate_result:"reason"::STRING, 'BLOCKED')),
+        CONCAT('GUARDRAIL_', gate_reason),
         NULL,
         'BLOCKED',
         FALSE,
