@@ -459,10 +459,10 @@ BEGIN
   VALUES (
     'APP_ENGINE.sp_detect_anomalies',
     CURRENT_TIMESTAMP(),
-    OBJECT_CONSTRUCT('inserted_alerts', inserted_alerts)
+    OBJECT_CONSTRUCT('inserted_alerts', :inserted_alerts)
   );
 
-  RETURN OBJECT_CONSTRUCT('status', 'SUCCESS', 'inserted_alerts', inserted_alerts);
+  RETURN OBJECT_CONSTRUCT('status', 'SUCCESS', 'inserted_alerts', :inserted_alerts);
 END;
 $$;
 
@@ -516,10 +516,10 @@ BEGIN
   VALUES (
     'APP_ENGINE.sp_open_close_incidents',
     CURRENT_TIMESTAMP(),
-    OBJECT_CONSTRUCT('opened_incidents', opened_count, 'closed_incidents', closed_count)
+    OBJECT_CONSTRUCT('opened_incidents', :opened_count, 'closed_incidents', :closed_count)
   );
 
-  RETURN OBJECT_CONSTRUCT('status', 'SUCCESS', 'opened_incidents', opened_count, 'closed_incidents', closed_count);
+  RETURN OBJECT_CONSTRUCT('status', 'SUCCESS', 'opened_incidents', :opened_count, 'closed_incidents', :closed_count);
 END;
 $$;
 
@@ -606,14 +606,14 @@ BEGIN
   VALUES (
     COALESCE(:cycle_name, 'manual_cycle'),
     'SUCCESS',
-    OBJECT_CONSTRUCT('anomaly_result', anomaly_result, 'incident_result', incident_result)
+    OBJECT_CONSTRUCT('anomaly_result', :anomaly_result, 'incident_result', :incident_result)
   );
 
   RETURN OBJECT_CONSTRUCT(
     'status', 'SUCCESS',
     'cycle_name', COALESCE(:cycle_name, 'manual_cycle'),
-    'anomaly_result', anomaly_result,
-    'incident_result', incident_result
+    'anomaly_result', :anomaly_result,
+    'incident_result', :incident_result
   );
 END;
 $$;
