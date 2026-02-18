@@ -148,13 +148,6 @@ DECLARE
   col_name STRING;
   col_data_type STRING;
   col_ordinal NUMBER;
-  col_rs RESULTSET DEFAULT (
-    SELECT column_name, data_type, ordinal_position
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = 'PLACEHOLDER'
-      AND TABLE_NAME = 'PLACEHOLDER'
-    ORDER BY ordinal_position
-  );
 BEGIN
   table_ref := '"' || target_schema || '"."' || target_table || '"';
 
@@ -264,7 +257,6 @@ DECLARE
   cur_column_name STRING;
   cur_data_type STRING;
   cur_sample_value STRING;
-  col_rs RESULTSET DEFAULT (SELECT 1 WHERE FALSE);
 BEGIN
   run_id := COALESCE(
     :profile_run_id,
