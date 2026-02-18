@@ -148,8 +148,13 @@ DECLARE
   col_name STRING;
   col_data_type STRING;
   col_ordinal NUMBER;
-  col_rs RESULTSET;
-  col_cursor CURSOR FOR col_rs;
+  col_rs RESULTSET DEFAULT (
+    SELECT column_name, data_type, ordinal_position
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = 'PLACEHOLDER'
+      AND TABLE_NAME = 'PLACEHOLDER'
+    ORDER BY ordinal_position
+  );
 BEGIN
   table_ref := '"' || target_schema || '"."' || target_table || '"';
 
@@ -162,7 +167,7 @@ BEGIN
     INTO :row_count
   FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
-  col_rs := (
+  LET col_rs RESULTSET := (
     SELECT column_name, data_type, ordinal_position
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = UPPER(:target_schema)
@@ -170,12 +175,10 @@ BEGIN
     ORDER BY ordinal_position
   );
 
-  OPEN col_cursor;
-  LOOP
-    FETCH col_cursor INTO :col_name, :col_data_type, :col_ordinal;
-    IF (NOT FOUND) THEN
-      LEAVE;
-    END IF;
+  FOR rec IN col_rs DO
+    col_name := rec.column_name;
+    col_data_type := rec.data_type;
+    col_ordinal := rec.ordinal_position;
 
     sql_cmd := 'SELECT COUNT(*), SUM(IFF(' ||
       '"' || REPLACE(col_name, '"', '""') || '" IS NULL, 1, 0)), COUNT(DISTINCT ' ||
@@ -207,8 +210,7 @@ BEGIN
       :col_sample;
 
     profiled_columns := profiled_columns + 1;
-  END LOOP;
-  CLOSE col_cursor;
+  END FOR;
 
   UPDATE profile_runs
   SET status = 'SUCCESS',
@@ -262,8 +264,7 @@ DECLARE
   cur_column_name STRING;
   cur_data_type STRING;
   cur_sample_value STRING;
-  col_rs RESULTSET;
-  col_cursor CURSOR FOR col_rs;
+  col_rs RESULTSET DEFAULT (SELECT 1 WHERE FALSE);
 BEGIN
   run_id := COALESCE(
     :profile_run_id,
@@ -274,18 +275,16 @@ BEGIN
     RETURN OBJECT_CONSTRUCT('status', 'FAILED', 'reason', 'NO_PROFILE_RUN_AVAILABLE');
   END IF;
 
-  col_rs := (
+  LET col_rs RESULTSET := (
     SELECT column_name, data_type, sample_value
     FROM profile_column_stats
     WHERE profile_run_id = :run_id
   );
 
-  OPEN col_cursor;
-  LOOP
-    FETCH col_cursor INTO :cur_column_name, :cur_data_type, :cur_sample_value;
-    IF (NOT FOUND) THEN
-      LEAVE;
-    END IF;
+  FOR rec IN col_rs DO
+    cur_column_name := rec.column_name;
+    cur_data_type := rec.data_type;
+    cur_sample_value := rec.sample_value;
 
     gate_result := (
       CALL APP_CORE.sp_enforce_cortex_execution(
@@ -368,8 +367,7 @@ BEGIN
 
       classified_count := classified_count + 1;
     END IF;
-  END LOOP;
-  CLOSE col_cursor;
+  END FOR;
 
   RETURN OBJECT_CONSTRUCT(
     'status', 'SUCCESS',
