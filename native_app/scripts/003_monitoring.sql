@@ -456,11 +456,10 @@ BEGIN
   inserted_alerts := SQLROWCOUNT;
 
   INSERT INTO APP_EVENTS.event_run_status(source, event_ts, payload)
-  VALUES (
+  SELECT
     'APP_ENGINE.sp_detect_anomalies',
     CURRENT_TIMESTAMP(),
-    OBJECT_CONSTRUCT('inserted_alerts', :inserted_alerts)
-  );
+    OBJECT_CONSTRUCT('inserted_alerts', :inserted_alerts);
 
   RETURN OBJECT_CONSTRUCT('status', 'SUCCESS', 'inserted_alerts', :inserted_alerts);
 END;
@@ -513,11 +512,10 @@ BEGIN
     AND status = 'CLOSED';
 
   INSERT INTO APP_EVENTS.event_run_status(source, event_ts, payload)
-  VALUES (
+  SELECT
     'APP_ENGINE.sp_open_close_incidents',
     CURRENT_TIMESTAMP(),
-    OBJECT_CONSTRUCT('opened_incidents', :opened_count, 'closed_incidents', :closed_count)
-  );
+    OBJECT_CONSTRUCT('opened_incidents', :opened_count, 'closed_incidents', :closed_count);
 
   RETURN OBJECT_CONSTRUCT('status', 'SUCCESS', 'opened_incidents', :opened_count, 'closed_incidents', :closed_count);
 END;
@@ -603,11 +601,10 @@ BEGIN
   incident_result := (CALL sp_open_close_incidents());
 
   INSERT INTO task_run_history(task_name, run_status, details)
-  VALUES (
+  SELECT
     COALESCE(:cycle_name, 'manual_cycle'),
     'SUCCESS',
-    OBJECT_CONSTRUCT('anomaly_result', :anomaly_result, 'incident_result', :incident_result)
-  );
+    OBJECT_CONSTRUCT('anomaly_result', :anomaly_result, 'incident_result', :incident_result);
 
   RETURN OBJECT_CONSTRUCT(
     'status', 'SUCCESS',
