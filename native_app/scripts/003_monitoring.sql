@@ -168,7 +168,7 @@ BEGIN
 
   OPEN col_cursor;
   LOOP
-    FETCH col_cursor INTO col_name, col_data_type, col_ordinal;
+    FETCH col_cursor INTO :col_name, :col_data_type, :col_ordinal;
     IF (NOT FOUND) THEN
       LEAVE;
     END IF;
@@ -274,7 +274,7 @@ BEGIN
 
   OPEN col_cursor;
   LOOP
-    FETCH col_cursor INTO cur_column_name, cur_data_type, cur_sample_value;
+    FETCH col_cursor INTO :cur_column_name, :cur_data_type, :cur_sample_value;
     IF (NOT FOUND) THEN
       LEAVE;
     END IF;
