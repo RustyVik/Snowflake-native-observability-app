@@ -74,7 +74,7 @@ BEGIN
     due_at,
     payload
   )
-  VALUES (
+  SELECT
     :new_id,
     :incident_id,
     :title,
@@ -85,8 +85,7 @@ BEGIN
     24,
     CURRENT_TIMESTAMP(),
     DATEADD('hour', 24, CURRENT_TIMESTAMP()),
-    OBJECT_CONSTRUCT('source', 'sp_create_remediation_task')
-  );
+    OBJECT_CONSTRUCT('source', 'sp_create_remediation_task');
 
   INSERT INTO task_status_history(task_id, old_status, new_status, notes)
   VALUES (:new_id, NULL, 'OPEN', 'Task created');
