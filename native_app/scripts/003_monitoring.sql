@@ -148,6 +148,12 @@ DECLARE
   col_name STRING;
   col_data_type STRING;
   col_ordinal NUMBER;
+  col_cursor CURSOR FOR
+    SELECT column_name, data_type, ordinal_position
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = UPPER(:target_schema)
+      AND TABLE_NAME = UPPER(:target_table)
+    ORDER BY ordinal_position;
 BEGIN
   table_ref := '"' || target_schema || '"."' || target_table || '"';
 
@@ -160,16 +166,12 @@ BEGIN
     INTO :row_count
   FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
-  FOR rec IN (
-    SELECT column_name, data_type, ordinal_position
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = UPPER(:target_schema)
-      AND TABLE_NAME = UPPER(:target_table)
-    ORDER BY ordinal_position
-  ) DO
-    col_name := rec.column_name;
-    col_data_type := rec.data_type;
-    col_ordinal := rec.ordinal_position;
+  OPEN col_cursor;
+  LOOP
+    FETCH col_cursor INTO col_name, col_data_type, col_ordinal;
+    IF (NOT FOUND) THEN
+      LEAVE;
+    END IF;
 
     sql_cmd := 'SELECT COUNT(*), SUM(IFF(' ||
       '"' || REPLACE(col_name, '"', '""') || '" IS NULL, 1, 0)), COUNT(DISTINCT ' ||
@@ -201,7 +203,8 @@ BEGIN
       :col_sample;
 
     profiled_columns := profiled_columns + 1;
-  END FOR;
+  END LOOP;
+  CLOSE col_cursor;
 
   UPDATE profile_runs
   SET status = 'SUCCESS',
@@ -252,6 +255,13 @@ DECLARE
   audit_event_id STRING;
   prompt STRING;
   response STRING;
+  cur_column_name STRING;
+  cur_data_type STRING;
+  cur_sample_value STRING;
+  col_cursor CURSOR FOR
+    SELECT column_name, data_type, sample_value
+    FROM profile_column_stats
+    WHERE profile_run_id = :run_id;
 BEGIN
   run_id := COALESCE(
     :profile_run_id,
@@ -262,17 +272,19 @@ BEGIN
     RETURN OBJECT_CONSTRUCT('status', 'FAILED', 'reason', 'NO_PROFILE_RUN_AVAILABLE');
   END IF;
 
-  FOR rec IN (
-    SELECT column_name, data_type, sample_value
-    FROM profile_column_stats
-    WHERE profile_run_id = :run_id
-  ) DO
+  OPEN col_cursor;
+  LOOP
+    FETCH col_cursor INTO cur_column_name, cur_data_type, cur_sample_value;
+    IF (NOT FOUND) THEN
+      LEAVE;
+    END IF;
+
     gate_result := (
       CALL APP_CORE.sp_enforce_cortex_execution(
         :model_name,
         :token_estimate,
         'APP_ENGINE.sp_classify_columns_cortex',
-        OBJECT_CONSTRUCT('column_name', rec.column_name, 'profile_run_id', run_id)
+        OBJECT_CONSTRUCT('column_name', :cur_column_name, 'profile_run_id', :run_id)
       )
     );
 
@@ -280,97 +292,76 @@ BEGIN
     gate_reason := COALESCE(gate_result:"reason"::STRING, 'BLOCKED');
 
     IF (gate_status = 'BLOCKED') THEN
-      INSERT INTO classification_results(
-        profile_run_id,
-        column_name,
-        model_name,
-        prompt_version,
-        inferred_label,
-        confidence,
-        reason_code,
-        cortex_response,
-        effective_label,
-        override_applied,
-        override_reason
-      )
-      VALUES (
+      INSERT INTO classification_results
+        (profile_run_id, column_name, model_name, prompt_version, inferred_label, confidence, reason_code, cortex_response, effective_label, override_applied, override_reason)
+      SELECT
         :run_id,
-        rec.column_name,
+        :cur_column_name,
         :model_name,
         :prompt_version,
         'BLOCKED',
         0,
-        CONCAT('GUARDRAIL_', gate_reason),
+        CONCAT('GUARDRAIL_', :gate_reason),
         NULL,
         'BLOCKED',
         FALSE,
-        NULL
-      );
+        NULL;
 
       classified_count := classified_count + 1;
     ELSE
-    prompt := CONCAT(
-      'Classify this column into domain labels like IDENTIFIER, CONTACT, FINANCIAL, ADDRESS, DEMOGRAPHIC, METRIC, OTHER. ',
-      'Column=', rec.column_name,
-      '; DataType=', rec.data_type,
-      '; Sample=', COALESCE(rec.sample_value, 'NULL')
-    );
-    response := SNOWFLAKE.CORTEX.COMPLETE('snowflake-arctic', :prompt);
+      prompt := CONCAT(
+        'Classify this column into domain labels like IDENTIFIER, CONTACT, FINANCIAL, ADDRESS, DEMOGRAPHIC, METRIC, OTHER. ',
+        'Column=', cur_column_name,
+        '; DataType=', cur_data_type,
+        '; Sample=', COALESCE(cur_sample_value, 'NULL')
+      );
+      response := SNOWFLAKE.CORTEX.COMPLETE('snowflake-arctic', :prompt);
 
-    inferred_label :=
-      CASE
-        WHEN LOWER(rec.column_name) LIKE '%email%' THEN 'CONTACT_EMAIL'
-        WHEN LOWER(rec.column_name) LIKE '%phone%' THEN 'CONTACT_PHONE'
-        WHEN LOWER(rec.column_name) LIKE '%name%' THEN 'PERSON_NAME'
-        WHEN LOWER(rec.column_name) LIKE '%address%' THEN 'ADDRESS'
-        WHEN LOWER(rec.column_name) LIKE '%amount%' OR LOWER(rec.column_name) LIKE '%price%' THEN 'FINANCIAL'
-        ELSE 'OTHER'
-      END;
+      inferred_label :=
+        CASE
+          WHEN LOWER(cur_column_name) LIKE '%email%' THEN 'CONTACT_EMAIL'
+          WHEN LOWER(cur_column_name) LIKE '%phone%' THEN 'CONTACT_PHONE'
+          WHEN LOWER(cur_column_name) LIKE '%name%' THEN 'PERSON_NAME'
+          WHEN LOWER(cur_column_name) LIKE '%address%' THEN 'ADDRESS'
+          WHEN LOWER(cur_column_name) LIKE '%amount%' OR LOWER(cur_column_name) LIKE '%price%' THEN 'FINANCIAL'
+          ELSE 'OTHER'
+        END;
 
-    confidence :=
-      CASE
-        WHEN inferred_label = 'OTHER' THEN 0.65
-        ELSE 0.85
-      END;
+      confidence :=
+        CASE
+          WHEN inferred_label = 'OTHER' THEN 0.65
+          ELSE 0.85
+        END;
 
-    reason_code := IFF(inferred_label = 'OTHER', 'HEURISTIC_FALLBACK', 'HEURISTIC_MATCH');
+      reason_code := IFF(inferred_label = 'OTHER', 'HEURISTIC_FALLBACK', 'HEURISTIC_MATCH');
 
-    INSERT INTO classification_results(
-      profile_run_id,
-      column_name,
-      model_name,
-      prompt_version,
-      inferred_label,
-      confidence,
-      reason_code,
-      cortex_response,
-      effective_label
-    )
-    VALUES (
-      :run_id,
-      rec.column_name,
-      :model_name,
-      :prompt_version,
-      :inferred_label,
-      :confidence,
-      :reason_code,
-      :response,
-      :inferred_label
-    );
-
-    audit_event_id := (
-      CALL APP_CORE.sp_record_cortex_call_audit(
-        'APP_ENGINE.sp_classify_columns_cortex',
+      INSERT INTO classification_results
+        (profile_run_id, column_name, model_name, prompt_version, inferred_label, confidence, reason_code, cortex_response, effective_label)
+      SELECT
+        :run_id,
+        :cur_column_name,
         :model_name,
-        :token_estimate,
-        'SUCCESS',
-        OBJECT_CONSTRUCT('column_name', rec.column_name, 'profile_run_id', run_id)
-      )
-    );
+        :prompt_version,
+        :inferred_label,
+        :confidence,
+        :reason_code,
+        :response,
+        :inferred_label;
 
-    classified_count := classified_count + 1;
+      audit_event_id := (
+        CALL APP_CORE.sp_record_cortex_call_audit(
+          'APP_ENGINE.sp_classify_columns_cortex',
+          :model_name,
+          :token_estimate,
+          'SUCCESS',
+          OBJECT_CONSTRUCT('column_name', :cur_column_name, 'profile_run_id', :run_id)
+        )
+      );
+
+      classified_count := classified_count + 1;
     END IF;
-  END FOR;
+  END LOOP;
+  CLOSE col_cursor;
 
   RETURN OBJECT_CONSTRUCT(
     'status', 'SUCCESS',
