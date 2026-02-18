@@ -151,9 +151,9 @@ DECLARE
   col_cursor CURSOR FOR
     SELECT column_name, data_type, ordinal_position
     FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = UPPER(:target_schema)
-      AND TABLE_NAME = UPPER(:target_table)
-    ORDER BY ordinal_position;
+    WHERE TABLE_SCHEMA = UPPER(?)
+      AND TABLE_NAME = UPPER(?)
+    ORDER BY ordinal_position
 BEGIN
   table_ref := '"' || target_schema || '"."' || target_table || '"';
 
@@ -166,7 +166,7 @@ BEGIN
     INTO :row_count
   FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
-  OPEN col_cursor;
+  OPEN col_cursor USING (target_schema, target_table);
   LOOP
     FETCH col_cursor INTO :col_name, :col_data_type, :col_ordinal;
     IF (NOT FOUND) THEN
@@ -261,7 +261,7 @@ DECLARE
   col_cursor CURSOR FOR
     SELECT column_name, data_type, sample_value
     FROM profile_column_stats
-    WHERE profile_run_id = :run_id;
+    WHERE profile_run_id = ?
 BEGIN
   run_id := COALESCE(
     :profile_run_id,
@@ -272,7 +272,7 @@ BEGIN
     RETURN OBJECT_CONSTRUCT('status', 'FAILED', 'reason', 'NO_PROFILE_RUN_AVAILABLE');
   END IF;
 
-  OPEN col_cursor;
+  OPEN col_cursor USING (run_id);
   LOOP
     FETCH col_cursor INTO :cur_column_name, :cur_data_type, :cur_sample_value;
     IF (NOT FOUND) THEN
