@@ -540,14 +540,13 @@ BEGIN
     is_anomaly,
     payload
   )
-  VALUES (
+  SELECT
     COALESCE(:source_name, 'SYNTHETIC_TEST'),
     'dq_anomaly_score',
     :signal_value,
     :threshold,
     :anomaly_flag,
-    OBJECT_CONSTRUCT('type', 'synthetic', 'created_by', CURRENT_USER())
-  );
+    OBJECT_CONSTRUCT('type', 'synthetic', 'created_by', CURRENT_USER());
 
   RETURN OBJECT_CONSTRUCT(
     'status', 'SUCCESS',
