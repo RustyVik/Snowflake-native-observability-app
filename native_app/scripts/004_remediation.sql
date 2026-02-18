@@ -52,7 +52,7 @@ BEGIN
   FROM APP_ENGINE.incidents
   WHERE incident_id = :incident_id;
 
-  IF (NOT incident_exists) THEN
+  IF (NOT :incident_exists) THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'FAILED',
       'reason', 'INCIDENT_NOT_FOUND',
@@ -116,7 +116,7 @@ BEGIN
   ORDER BY i.opened_at DESC
   LIMIT 1;
 
-  IF (latest_incident_id IS NULL) THEN
+  IF (:latest_incident_id IS NULL) THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'FAILED',
       'reason', 'NO_OPEN_INCIDENT_FOR_SOURCE',
@@ -146,7 +146,7 @@ BEGIN
 
   updated_rows := SQLROWCOUNT;
 
-  IF (updated_rows = 0) THEN
+  IF (:updated_rows = 0) THEN
     RETURN OBJECT_CONSTRUCT('status', 'FAILED', 'reason', 'TASK_NOT_FOUND', 'task_id', :task_id);
   END IF;
 
@@ -174,36 +174,36 @@ BEGIN
   FROM remediation_tasks
   WHERE task_id = :task_id;
 
-  IF (old_status IS NULL) THEN
+  IF (:old_status IS NULL) THEN
     RETURN OBJECT_CONSTRUCT('status', 'FAILED', 'reason', 'TASK_NOT_FOUND', 'task_id', :task_id);
   END IF;
 
   is_valid_transition :=
-      (old_status = 'OPEN' AND normalized_status IN ('IN_PROGRESS', 'BLOCKED', 'CANCELLED'))
-   OR (old_status = 'IN_PROGRESS' AND normalized_status IN ('BLOCKED', 'COMPLETED', 'CANCELLED'))
-   OR (old_status = 'BLOCKED' AND normalized_status IN ('IN_PROGRESS', 'CANCELLED'))
-   OR (old_status IN ('CANCELLED', 'COMPLETED') AND normalized_status = old_status)
-   OR (old_status = normalized_status);
+      (:old_status = 'OPEN' AND :normalized_status IN ('IN_PROGRESS', 'BLOCKED', 'CANCELLED'))
+   OR (:old_status = 'IN_PROGRESS' AND :normalized_status IN ('BLOCKED', 'COMPLETED', 'CANCELLED'))
+   OR (:old_status = 'BLOCKED' AND :normalized_status IN ('IN_PROGRESS', 'CANCELLED'))
+   OR (:old_status IN ('CANCELLED', 'COMPLETED') AND :normalized_status = :old_status)
+   OR (:old_status = :normalized_status);
 
-  IF (NOT is_valid_transition) THEN
+  IF (NOT :is_valid_transition) THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'FAILED',
       'reason', 'INVALID_STATUS_TRANSITION',
-      'old_status', old_status,
-      'new_status', normalized_status
+      'old_status', :old_status,
+      'new_status', :normalized_status
     );
   END IF;
 
   UPDATE remediation_tasks
   SET status = :normalized_status,
-      started_at = IFF(old_status = 'OPEN' AND normalized_status = 'IN_PROGRESS', CURRENT_TIMESTAMP(), started_at),
-      completed_at = IFF(normalized_status = 'COMPLETED', CURRENT_TIMESTAMP(), completed_at)
+      started_at = IFF(:old_status = 'OPEN' AND :normalized_status = 'IN_PROGRESS', CURRENT_TIMESTAMP(), started_at),
+      completed_at = IFF(:normalized_status = 'COMPLETED', CURRENT_TIMESTAMP(), completed_at)
   WHERE task_id = :task_id;
 
   INSERT INTO task_status_history(task_id, old_status, new_status, notes)
   VALUES (:task_id, :old_status, :normalized_status, :notes);
 
-  IF (notes IS NOT NULL) THEN
+  IF (:notes IS NOT NULL) THEN
     INSERT INTO remediation_comments(task_id, comment_text)
     VALUES (:task_id, :notes);
   END IF;
@@ -211,8 +211,8 @@ BEGIN
   RETURN OBJECT_CONSTRUCT(
     'status', 'SUCCESS',
     'task_id', :task_id,
-    'old_status', old_status,
-    'new_status', normalized_status
+    'old_status', :old_status,
+    'new_status', :normalized_status
   );
 END;
 $$;
@@ -227,10 +227,10 @@ DECLARE
   status_result_status STRING;
 BEGIN
   status_result := (CALL sp_update_remediation_status(:task_id, 'COMPLETED', :resolution_notes));
-  status_result_status := COALESCE(status_result:"status"::STRING, 'UNKNOWN');
+  status_result_status := COALESCE(:status_result:"status"::STRING, 'UNKNOWN');
 
-  IF (status_result_status <> 'SUCCESS') THEN
-    RETURN status_result;
+  IF (:status_result_status <> 'SUCCESS') THEN
+    RETURN :status_result;
   END IF;
 
   UPDATE remediation_tasks
@@ -323,7 +323,7 @@ BEGIN
   ORDER BY rt.created_at DESC
   LIMIT 1;
 
-  IF (latest_task_id IS NULL) THEN
+  IF (:latest_task_id IS NULL) THEN
     RETURN OBJECT_CONSTRUCT('status', 'FAILED', 'reason', 'NO_TASK_FOUND_FOR_SOURCE', 'source', :source_name);
   END IF;
 

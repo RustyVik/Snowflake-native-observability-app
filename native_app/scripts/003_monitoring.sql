@@ -263,7 +263,7 @@ BEGIN
     (SELECT profile_run_id FROM profile_runs ORDER BY started_at DESC LIMIT 1)
   );
 
-  IF (run_id IS NULL) THEN
+  IF (:run_id IS NULL) THEN
     RETURN OBJECT_CONSTRUCT('status', 'FAILED', 'reason', 'NO_PROFILE_RUN_AVAILABLE');
   END IF;
 
@@ -287,10 +287,10 @@ BEGIN
       )
     );
 
-    gate_status := COALESCE(gate_result:"status"::STRING, 'UNKNOWN');
-    gate_reason := COALESCE(gate_result:"reason"::STRING, 'BLOCKED');
+    gate_status := COALESCE(:gate_result:"status"::STRING, 'UNKNOWN');
+    gate_reason := COALESCE(:gate_result:"reason"::STRING, 'BLOCKED');
 
-    IF (gate_status = 'BLOCKED') THEN
+    IF (:gate_status = 'BLOCKED') THEN
       INSERT INTO classification_results
         (profile_run_id, column_name, model_name, prompt_version, inferred_label, confidence, reason_code, cortex_response, effective_label, override_applied, override_reason)
       SELECT
@@ -393,7 +393,7 @@ BEGIN
   ORDER BY classified_at DESC
   LIMIT 1;
 
-  IF (previous_label IS NULL) THEN
+  IF (:previous_label IS NULL) THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'FAILED',
       'reason', 'COLUMN_NOT_CLASSIFIED',
@@ -574,7 +574,7 @@ BEGIN
   ORDER BY created_at DESC
   LIMIT 1;
 
-  IF (latest_alert_id IS NULL) THEN
+  IF (:latest_alert_id IS NULL) THEN
     RETURN OBJECT_CONSTRUCT('status', 'NOOP', 'reason', 'NO_OPEN_ALERT_FOUND');
   END IF;
 
