@@ -6,7 +6,8 @@ version:
 artifacts:
   setup_script: setup.sql
   readme: README.md
-  default_streamlit: streamlit/Home.py
+  default_streamlit: APP_CORE.observability_dashboard
+  extension_code: true
 
 configuration:
   log_level: INFO
