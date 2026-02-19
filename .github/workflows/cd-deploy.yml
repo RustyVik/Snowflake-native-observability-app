@@ -182,12 +182,14 @@ jobs:
               COMMENT = 'Native Observability App deployment stage';
           "
 
-      - name: Upload manifest and setup
+      - name: Upload manifest, setup, and README
         run: |
           snow sql --connection OBSERVABILITYAPP -q \
             "PUT file://native_app/manifest.yml @${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
           snow sql --connection OBSERVABILITYAPP -q \
             "PUT file://native_app/setup.sql @${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+          snow sql --connection OBSERVABILITYAPP -q \
+            "PUT file://README.md @${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
 
       - name: Upload SQL scripts
         run: |
@@ -215,18 +217,17 @@ jobs:
       - name: Create or upgrade application
         run: |
           echo "Attempting to create application ${APP_NAME}..."
-          if snow sql --connection OBSERVABILITYAPP -q "
-            CREATE APPLICATION ${APP_NAME}
+          CREATE_OUTPUT=$(snow sql --connection OBSERVABILITYAPP -q "
+            CREATE APPLICATION IF NOT EXISTS ${APP_NAME}
               FROM APPLICATION PACKAGE ${APP_PACKAGE}
               USING '@${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE';
-          " 2>/dev/null; then
-            echo "✅ Application created successfully"
-          else
-            echo "Application already exists, upgrading..."
+          " 2>&1) && echo "✅ $CREATE_OUTPUT" || {
+            echo "CREATE returned: $CREATE_OUTPUT"
+            echo "Attempting upgrade instead..."
             snow sql --connection OBSERVABILITYAPP -q \
               "ALTER APPLICATION ${APP_NAME} UPGRADE USING '@${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE';"
             echo "✅ Application upgraded successfully"
-          fi
+          }
 
       - name: Verify application health
         run: |

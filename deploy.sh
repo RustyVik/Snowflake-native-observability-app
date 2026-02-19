@@ -104,6 +104,9 @@ run_sql "PUT file://${NATIVE_APP_DIR}/manifest.yml ${FULL_STAGE}/ AUTO_COMPRESS=
 echo "   📄 setup.sql"
 run_sql "PUT file://${NATIVE_APP_DIR}/setup.sql ${FULL_STAGE}/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
 
+echo "   📄 README.md"
+run_sql "PUT file://${SCRIPT_DIR}/README.md ${FULL_STAGE}/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+
 echo "   📁 scripts/"
 for f in "${NATIVE_APP_DIR}"/scripts/*.sql; do
   echo "   📄 scripts/$(basename "$f")"
@@ -131,10 +134,10 @@ banner "STEP 4: Installing Application"
 
 echo "   Attempting to create application..."
 if run_sql "
-  CREATE APPLICATION ${APP_NAME}
+  CREATE APPLICATION IF NOT EXISTS ${APP_NAME}
     FROM APPLICATION PACKAGE ${APP_PACKAGE}
     USING '${FULL_STAGE}';
-" 2>/dev/null; then
+"; then
   echo "✅  Application created"
 else
   echo "   Application already exists, upgrading..."
