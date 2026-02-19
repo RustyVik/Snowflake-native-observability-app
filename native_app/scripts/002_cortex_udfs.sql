@@ -369,7 +369,7 @@ BEGIN
     AND is_active = TRUE
   LIMIT 1;
 
-  IF (model_name IS NULL) THEN
+  IF (:model_name IS NULL) THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'ERROR',
       'message', CONCAT('Unknown or inactive rule: ', COALESCE(:rule_name, 'NULL'))
@@ -385,13 +385,13 @@ BEGIN
     )
   );
 
-  gate_status := COALESCE(gate_result:"status"::STRING, 'UNKNOWN');
+  gate_status := COALESCE(:gate_result:"status"::STRING, 'UNKNOWN');
 
-  IF (gate_status = 'BLOCKED') THEN
+  IF (:gate_status = 'BLOCKED') THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'BLOCKED',
       'rule_name', :rule_name,
-      'gate', gate_result
+      'gate', :gate_result
     );
   END IF;
 
@@ -407,7 +407,7 @@ BEGIN
   END
   INTO :result;
 
-  IF (result IS NULL) THEN
+  IF (:result IS NULL) THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'ERROR',
       'message', CONCAT('Unknown rule: ', COALESCE(:rule_name, 'NULL')),
@@ -468,7 +468,7 @@ BEGIN
       OR COALESCE(ra.approval_status, 'PENDING') <> 'APPROVED'
     );
 
-  IF (unresolved_count > 0) THEN
+  IF (:unresolved_count > 0) THEN
     INSERT INTO APP_DQ.rule_promotion_audit(pack_name, target_object, promoted_rule_count, status, details)
     SELECT
       :pack_name,
@@ -480,7 +480,7 @@ BEGIN
     RETURN OBJECT_CONSTRUCT(
       'status', 'BLOCKED',
       'reason', 'UNAPPROVED_OR_MISSING_VERSION',
-      'unresolved_count', unresolved_count
+      'unresolved_count', :unresolved_count
     );
   END IF;
 

@@ -142,20 +142,20 @@ DECLARE
   enforce_gate BOOLEAN;
 BEGIN
   gate_result := (CALL APP_CORE.sp_validate_cortex_access());
-  gate_status := gate_result:"status"::STRING;
-  enforce_gate := COALESCE(gate_result:"enforce_activation_gate"::BOOLEAN, TRUE);
+  gate_status := :gate_result:"status"::STRING;
+  enforce_gate := COALESCE(:gate_result:"enforce_activation_gate"::BOOLEAN, TRUE);
 
-  IF (enforce_gate AND gate_status <> 'PASS') THEN
+  IF (:enforce_gate AND :gate_status <> 'PASS') THEN
     RETURN OBJECT_CONSTRUCT(
       'status', 'BLOCKED',
       'reason', 'CORTEX_PREREQUISITES_FAILED',
-      'gate_result', gate_result
+      'gate_result', :gate_result
     );
   END IF;
 
   RETURN OBJECT_CONSTRUCT(
     'status', 'READY',
-    'gate_result', gate_result
+    'gate_result', :gate_result
   );
 END;
 $$;
@@ -343,18 +343,18 @@ BEGIN
   WHERE DATE_TRUNC('month', invoked_at) = DATE_TRUNC('month', CURRENT_DATE())
     AND COALESCE(call_status, 'UNKNOWN') NOT LIKE 'BLOCKED%';
 
-  IF (NOT is_allowed) THEN
+  IF (NOT :is_allowed) THEN
     execution_status := 'BLOCKED';
     blocked_reason := 'MODEL_NOT_ALLOWLISTED';
-  ELSEIF (daily_budget IS NOT NULL AND (consumed_today + estimated_tokens) > daily_budget) THEN
+  ELSEIF (:daily_budget IS NOT NULL AND (:consumed_today + :estimated_tokens) > :daily_budget) THEN
     execution_status := 'BLOCKED';
     blocked_reason := 'DAILY_BUDGET_EXCEEDED';
-  ELSEIF (monthly_budget IS NOT NULL AND (consumed_month + estimated_tokens) > monthly_budget) THEN
+  ELSEIF (:monthly_budget IS NOT NULL AND (:consumed_month + :estimated_tokens) > :monthly_budget) THEN
     execution_status := 'BLOCKED';
     blocked_reason := 'MONTHLY_BUDGET_EXCEEDED';
   END IF;
 
-  IF (execution_status = 'BLOCKED') THEN
+  IF (:execution_status = 'BLOCKED') THEN
     INSERT INTO APP_AUDIT.cortex_call_audit(
       rule_name,
       model_name,
@@ -362,34 +362,33 @@ BEGIN
       token_estimate,
       metadata
     )
-    VALUES (
+    SELECT
       COALESCE(:action_name, 'unknown_action'),
       :model_name,
-      CONCAT('BLOCKED_', blocked_reason),
+      CONCAT('BLOCKED_', :blocked_reason),
       :estimated_tokens,
-      OBJECT_INSERT(COALESCE(:metadata, OBJECT_CONSTRUCT()), 'blocked_reason', blocked_reason, TRUE)
-    );
+      OBJECT_INSERT(COALESCE(:metadata, OBJECT_CONSTRUCT()), 'blocked_reason', :blocked_reason, TRUE);
 
     RETURN OBJECT_CONSTRUCT(
       'status', 'BLOCKED',
-      'reason', blocked_reason,
+      'reason', :blocked_reason,
       'model', :model_name,
-      'consumed_today', consumed_today,
-      'consumed_month', consumed_month,
-      'daily_budget', daily_budget,
-      'monthly_budget', monthly_budget
+      'consumed_today', :consumed_today,
+      'consumed_month', :consumed_month,
+      'daily_budget', :daily_budget,
+      'monthly_budget', :monthly_budget
     );
   END IF;
 
   RETURN OBJECT_CONSTRUCT(
     'status', 'ALLOW',
     'model', :model_name,
-    'consumed_today', consumed_today,
-    'consumed_month', consumed_month,
-    'daily_budget', daily_budget,
-    'monthly_budget', monthly_budget,
-    'remaining_daily', IFF(daily_budget IS NULL, NULL, daily_budget - consumed_today),
-    'remaining_monthly', IFF(monthly_budget IS NULL, NULL, monthly_budget - consumed_month)
+    'consumed_today', :consumed_today,
+    'consumed_month', :consumed_month,
+    'daily_budget', :daily_budget,
+    'monthly_budget', :monthly_budget,
+    'remaining_daily', IFF(:daily_budget IS NULL, NULL, :daily_budget - :consumed_today),
+    'remaining_monthly', IFF(:monthly_budget IS NULL, NULL, :monthly_budget - :consumed_month)
   );
 END;
 $$;
@@ -411,7 +410,7 @@ BEGIN
          COALESCE(SUM(token_estimate), 0)
     INTO :total_calls, :blocked_calls, :total_tokens
   FROM APP_AUDIT.cortex_call_audit
-  WHERE invoked_at >= DATEADD('hour', -lookback, CURRENT_TIMESTAMP());
+  WHERE invoked_at >= DATEADD('hour', -:lookback, CURRENT_TIMESTAMP());
 
   SELECT COALESCE(
            ARRAY_AGG(OBJECT_CONSTRUCT('model', model_name, 'calls', calls, 'tokens', tokens)),
@@ -423,7 +422,7 @@ BEGIN
            COUNT(*) AS calls,
            COALESCE(SUM(token_estimate), 0) AS tokens
     FROM APP_AUDIT.cortex_call_audit
-    WHERE invoked_at >= DATEADD('hour', -lookback, CURRENT_TIMESTAMP())
+    WHERE invoked_at >= DATEADD('hour', -:lookback, CURRENT_TIMESTAMP())
     GROUP BY model_name
     ORDER BY calls DESC
     LIMIT 20
@@ -431,11 +430,11 @@ BEGIN
 
   RETURN OBJECT_CONSTRUCT(
     'status', 'SUCCESS',
-    'hours_back', lookback,
-    'total_calls', total_calls,
-    'blocked_calls', blocked_calls,
-    'total_tokens', total_tokens,
-    'models', model_summary
+    'hours_back', :lookback,
+    'total_calls', :total_calls,
+    'blocked_calls', :blocked_calls,
+    'total_tokens', :total_tokens,
+    'models', :model_summary
   );
 END;
 $$;
@@ -482,7 +481,7 @@ BEGIN
     )
   );
 
-  IF (baseline_id IS NULL) THEN
+  IF (:baseline_id IS NULL) THEN
     RETURN OBJECT_CONSTRUCT('status', 'FAILED', 'reason', 'NO_BASELINE_FOUND');
   END IF;
 
@@ -507,10 +506,10 @@ BEGIN
     AND post.row_count < pre.row_count;
 
   RETURN OBJECT_CONSTRUCT(
-    'status', IFF(regression_count = 0, 'PASS', 'FAIL'),
-    'baseline_run_id', baseline_id,
-    'validation_run_id', validation_run_id,
-    'row_count_regressions', regression_count
+    'status', IFF(:regression_count = 0, 'PASS', 'FAIL'),
+    'baseline_run_id', :baseline_id,
+    'validation_run_id', :validation_run_id,
+    'row_count_regressions', :regression_count
   );
 END;
 $$;
