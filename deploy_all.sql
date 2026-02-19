@@ -12,9 +12,23 @@
 !set variable_substitution=true
 
 !print ======================================================================
-!print STEP 1: Setup entrypoint
+!print STEP 1: Create schemas and version tracking
 !print ======================================================================
-!source native_app/setup.sql
+
+CREATE SCHEMA IF NOT EXISTS APP_CORE;
+CREATE SCHEMA IF NOT EXISTS APP_DQ;
+CREATE SCHEMA IF NOT EXISTS APP_EVENTS;
+CREATE SCHEMA IF NOT EXISTS APP_ENGINE;
+CREATE SCHEMA IF NOT EXISTS APP_AUDIT;
+
+CREATE TABLE IF NOT EXISTS APP_CORE.app_versions (
+  version STRING,
+  applied_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+  applied_by STRING DEFAULT CURRENT_USER()
+);
+
+INSERT INTO APP_CORE.app_versions(version) SELECT '0.1.0'
+WHERE NOT EXISTS (SELECT 1 FROM APP_CORE.app_versions WHERE version = '0.1.0');
 
 !print ======================================================================
 !print STEP 2: Sprint 1 foundation (core + readiness + lifecycle)
