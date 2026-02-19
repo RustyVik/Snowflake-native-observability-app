@@ -15,9 +15,13 @@ concurrency:
   group: snowflake-cd-${{ github.ref }}
   cancel-in-progress: true
 
+# ─── Reusable environment & connection setup ────────────────────────────
 jobs:
-  deploy:
-    name: Deploy to Snowflake
+  # ════════════════════════════════════════════════════════════════════════
+  # Job 1: Deploy SQL objects directly (schemas, procs, UDFs, tasks)
+  # ════════════════════════════════════════════════════════════════════════
+  deploy-scripts:
+    name: Deploy SQL Objects
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
     permissions:
@@ -28,25 +32,37 @@ jobs:
       SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
       SNOWFLAKE_PAT: ${{ secrets.SNOWFLAKE_PAT }}
 
+    outputs:
+      deploy_env: ${{ steps.set-env.outputs.deploy_env }}
+      target_db: ${{ steps.set-env.outputs.target_db }}
+      target_schema: ${{ steps.set-env.outputs.target_schema }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set deploy environment
+        id: set-env
         run: |
           TARGET_BRANCH="${GITHUB_BASE_REF:-${GITHUB_REF#refs/heads/}}"
           if [[ "$TARGET_BRANCH" == "staging" ]]; then
-            echo "DEPLOY_ENV=staging" >> "$GITHUB_ENV"
-            echo "TARGET_DB=${{ vars.SNOWFLAKE_DATABASE_STAGING || 'NATIVE_OBS' }}" >> "$GITHUB_ENV"
-            echo "TARGET_SCHEMA=${{ vars.SNOWFLAKE_SCHEMA_STAGING || 'PROD' }}" >> "$GITHUB_ENV"
+            DEPLOY_ENV="staging"
+            TARGET_DB="${{ vars.SNOWFLAKE_DATABASE_STAGING || 'NATIVE_OBS' }}"
+            TARGET_SCHEMA="${{ vars.SNOWFLAKE_SCHEMA_STAGING || 'PROD' }}"
           elif [[ "$TARGET_BRANCH" == "main" ]]; then
-            echo "DEPLOY_ENV=prod" >> "$GITHUB_ENV"
-            echo "TARGET_DB=${{ vars.SNOWFLAKE_DATABASE_PROD || 'NATIVE_OBS' }}" >> "$GITHUB_ENV"
-            echo "TARGET_SCHEMA=${{ vars.SNOWFLAKE_SCHEMA_PROD || 'PROD' }}" >> "$GITHUB_ENV"
+            DEPLOY_ENV="prod"
+            TARGET_DB="${{ vars.SNOWFLAKE_DATABASE_PROD || 'NATIVE_OBS' }}"
+            TARGET_SCHEMA="${{ vars.SNOWFLAKE_SCHEMA_PROD || 'PROD' }}"
           else
             echo "Unexpected branch: $TARGET_BRANCH"
             exit 1
           fi
+          echo "DEPLOY_ENV=$DEPLOY_ENV" >> "$GITHUB_ENV"
+          echo "TARGET_DB=$TARGET_DB" >> "$GITHUB_ENV"
+          echo "TARGET_SCHEMA=$TARGET_SCHEMA" >> "$GITHUB_ENV"
+          echo "deploy_env=$DEPLOY_ENV" >> "$GITHUB_OUTPUT"
+          echo "target_db=$TARGET_DB" >> "$GITHUB_OUTPUT"
+          echo "target_schema=$TARGET_SCHEMA" >> "$GITHUB_OUTPUT"
 
       - name: Install Snowflake CLI
         uses: snowflakedb/snowflake-cli-action@v1.5
@@ -96,7 +112,141 @@ jobs:
           snow sql --connection OBSERVABILITYAPP --database "$TARGET_DB" --schema "$TARGET_SCHEMA" -q "CALL APP_CORE.sp_validate_migration_integrity(NULL);"
           snow sql --connection OBSERVABILITYAPP --database "$TARGET_DB" --schema "$TARGET_SCHEMA" -q "CALL APP_ENGINE.sp_get_remediation_summary();"
 
-      - name: Deployment summary
+      - name: Script deployment summary
         run: |
-          echo "Deployment completed for environment: $DEPLOY_ENV"
-          echo "Target DB/Schema: $TARGET_DB.$TARGET_SCHEMA"
+          echo "✅ SQL deployment completed for environment: $DEPLOY_ENV"
+          echo "   Target DB/Schema: $TARGET_DB.$TARGET_SCHEMA"
+
+  # ════════════════════════════════════════════════════════════════════════
+  # Job 2: Package & install as a Snowflake Native App
+  # ════════════════════════════════════════════════════════════════════════
+  deploy-native-app:
+    name: Deploy Native App
+    needs: deploy-scripts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    env:
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PAT: ${{ secrets.SNOWFLAKE_PAT }}
+      DEPLOY_ENV: ${{ needs.deploy-scripts.outputs.deploy_env }}
+      TARGET_DB: ${{ needs.deploy-scripts.outputs.target_db }}
+      TARGET_SCHEMA: ${{ needs.deploy-scripts.outputs.target_schema }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set Native App names
+        id: app-names
+        run: |
+          if [[ "$DEPLOY_ENV" == "staging" ]]; then
+            echo "APP_PACKAGE=NATIVE_OBS_PKG_STG" >> "$GITHUB_ENV"
+            echo "APP_NAME=NATIVE_OBS_APP_STG" >> "$GITHUB_ENV"
+          else
+            echo "APP_PACKAGE=NATIVE_OBS_PKG" >> "$GITHUB_ENV"
+            echo "APP_NAME=NATIVE_OBS_APP" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install Snowflake CLI
+        uses: snowflakedb/snowflake-cli-action@v1.5
+        with:
+          cli-version: latest
+
+      - name: Configure Snowflake CLI connection
+        run: |
+          mkdir -p "$HOME/.snowflake"
+          printf "%s" "${SNOWFLAKE_PAT}" > "$HOME/.snowflake/pat_token.txt"
+          cat > "$HOME/.snowflake/config.toml" <<EOF
+          default_connection_name = "OBSERVABILITYAPP"
+
+          [connections.OBSERVABILITYAPP]
+          account = "${SNOWFLAKE_ACCOUNT}"
+          user = "${SNOWFLAKE_USER}"
+          authenticator = "PROGRAMMATIC_ACCESS_TOKEN"
+          token_file_path = "$HOME/.snowflake/pat_token.txt"
+          EOF
+          chmod 700 "$HOME/.snowflake"
+          chmod 600 "$HOME/.snowflake/pat_token.txt"
+          chmod 600 "$HOME/.snowflake/config.toml"
+
+      - name: Create application package and stage
+        run: |
+          snow sql --connection OBSERVABILITYAPP -q "
+            CREATE APPLICATION PACKAGE IF NOT EXISTS ${APP_PACKAGE};
+            CREATE SCHEMA IF NOT EXISTS ${APP_PACKAGE}.STAGE_CONTENT;
+            CREATE STAGE IF NOT EXISTS @${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE
+              DIRECTORY = (ENABLE = TRUE)
+              COMMENT = 'Native Observability App deployment stage';
+          "
+
+      - name: Upload manifest and setup
+        run: |
+          snow sql --connection OBSERVABILITYAPP -q \
+            "PUT file://native_app/manifest.yml @${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+          snow sql --connection OBSERVABILITYAPP -q \
+            "PUT file://native_app/setup.sql @${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+
+      - name: Upload SQL scripts
+        run: |
+          for f in native_app/scripts/*.sql; do
+            echo "  Uploading $f"
+            snow sql --connection OBSERVABILITYAPP -q \
+              "PUT file://${f} @${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE/scripts/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+          done
+
+      - name: Upload Streamlit files
+        run: |
+          snow sql --connection OBSERVABILITYAPP -q \
+            "PUT file://native_app/streamlit/Home.py @${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE/streamlit/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+          for f in native_app/streamlit/pages/*.py; do
+            echo "  Uploading $f"
+            snow sql --connection OBSERVABILITYAPP -q \
+              "PUT file://${f} @${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE/streamlit/pages/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+          done
+
+      - name: Verify staged files
+        run: |
+          snow sql --connection OBSERVABILITYAPP -q \
+            "LIST @${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE/ PATTERN='.*';"
+
+      - name: Create or upgrade application
+        run: |
+          APP_EXISTS=$(snow sql --connection OBSERVABILITYAPP -q \
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.DATABASES WHERE DATABASE_NAME = '${APP_NAME}';" \
+            --format json 2>/dev/null | grep -oP '\d+' | head -1 || echo "0")
+
+          if [[ "$APP_EXISTS" == "0" ]]; then
+            echo "Creating new application ${APP_NAME}..."
+            snow sql --connection OBSERVABILITYAPP -q "
+              CREATE APPLICATION ${APP_NAME}
+                FROM APPLICATION PACKAGE ${APP_PACKAGE}
+                USING '@${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE';
+            "
+          else
+            echo "Upgrading existing application ${APP_NAME}..."
+            snow sql --connection OBSERVABILITYAPP -q \
+              "ALTER APPLICATION ${APP_NAME} UPGRADE USING '@${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE';"
+          fi
+
+      - name: Verify application health
+        run: |
+          snow sql --connection OBSERVABILITYAPP -q "SHOW APPLICATIONS LIKE '${APP_NAME}';"
+          snow sql --connection OBSERVABILITYAPP --database "$TARGET_DB" --schema "$TARGET_SCHEMA" -q \
+            "CALL APP_CORE.sp_healthcheck();"
+
+      - name: Native App deployment summary
+        run: |
+          echo "══════════════════════════════════════════════════════════"
+          echo "  🎉 NATIVE APP DEPLOYMENT COMPLETE"
+          echo "══════════════════════════════════════════════════════════"
+          echo ""
+          echo "  Environment  : $DEPLOY_ENV"
+          echo "  App Package  : $APP_PACKAGE"
+          echo "  Application  : $APP_NAME"
+          echo "  DB/Schema    : $TARGET_DB.$TARGET_SCHEMA"
+          echo ""
+          echo "  ➤ View in Snowsight → Data Products → Apps → $APP_NAME"
+          echo "══════════════════════════════════════════════════════════"
