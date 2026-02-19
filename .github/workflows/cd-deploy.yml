@@ -177,7 +177,7 @@ jobs:
           snow sql --connection OBSERVABILITYAPP -q "
             CREATE APPLICATION PACKAGE IF NOT EXISTS ${APP_PACKAGE};
             CREATE SCHEMA IF NOT EXISTS ${APP_PACKAGE}.STAGE_CONTENT;
-            CREATE STAGE IF NOT EXISTS @${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE
+            CREATE STAGE IF NOT EXISTS ${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE
               DIRECTORY = (ENABLE = TRUE)
               COMMENT = 'Native Observability App deployment stage';
           "
