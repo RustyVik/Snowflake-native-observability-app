@@ -23,8 +23,9 @@ WHERE NOT EXISTS (SELECT 1 FROM APP_CORE.app_versions WHERE version = '0.1.0');
 -- Streamlit dashboard
 CREATE OR REPLACE STREAMLIT APP_CORE.observability_dashboard
   FROM '/streamlit'
-  MAIN_FILE = 'Home.py';
+  MAIN_FILE = '/Home.py';
 
+GRANT USAGE ON SCHEMA APP_CORE TO APPLICATION ROLE APP_PUBLIC;
 GRANT USAGE ON STREAMLIT APP_CORE.observability_dashboard TO APPLICATION ROLE APP_PUBLIC;
 
 -- Load scripted objects

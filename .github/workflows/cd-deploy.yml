@@ -215,6 +215,8 @@ jobs:
       - name: Upload Streamlit files
         run: |
           snow sql --connection OBSERVABILITYAPP -q \
+            "PUT file://native_app/streamlit/environment.yml @${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE/streamlit/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+          snow sql --connection OBSERVABILITYAPP -q \
             "PUT file://native_app/streamlit/Home.py @${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE/streamlit/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
           for f in native_app/streamlit/pages/*.py; do
             echo "  Uploading $f"
