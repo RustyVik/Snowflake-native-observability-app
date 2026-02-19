@@ -214,21 +214,18 @@ jobs:
 
       - name: Create or upgrade application
         run: |
-          APP_EXISTS=$(snow sql --connection OBSERVABILITYAPP -q \
-            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.DATABASES WHERE DATABASE_NAME = '${APP_NAME}';" \
-            --format json 2>/dev/null | grep -oP '\d+' | head -1 || echo "0")
-
-          if [[ "$APP_EXISTS" == "0" ]]; then
-            echo "Creating new application ${APP_NAME}..."
-            snow sql --connection OBSERVABILITYAPP -q "
-              CREATE APPLICATION ${APP_NAME}
-                FROM APPLICATION PACKAGE ${APP_PACKAGE}
-                USING '@${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE';
-            "
+          echo "Attempting to create application ${APP_NAME}..."
+          if snow sql --connection OBSERVABILITYAPP -q "
+            CREATE APPLICATION ${APP_NAME}
+              FROM APPLICATION PACKAGE ${APP_PACKAGE}
+              USING '@${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE';
+          " 2>/dev/null; then
+            echo "✅ Application created successfully"
           else
-            echo "Upgrading existing application ${APP_NAME}..."
+            echo "Application already exists, upgrading..."
             snow sql --connection OBSERVABILITYAPP -q \
               "ALTER APPLICATION ${APP_NAME} UPGRADE USING '@${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE';"
+            echo "✅ Application upgraded successfully"
           fi
 
       - name: Verify application health

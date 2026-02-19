@@ -129,18 +129,15 @@ echo "✅  Stage contents verified"
 # ── Step 4: Create or upgrade the application ────────────────────────────
 banner "STEP 4: Installing Application"
 
-APP_EXISTS=$(run_sql "SELECT COUNT(*) FROM INFORMATION_SCHEMA.DATABASES WHERE DATABASE_NAME = '${APP_NAME}';" 2>/dev/null | tr -d '[:space:]' || echo "0")
-
-if [ "$APP_EXISTS" = "0" ]; then
-  echo "   Creating new application..."
-  run_sql "
-    CREATE APPLICATION ${APP_NAME}
-      FROM APPLICATION PACKAGE ${APP_PACKAGE}
-      USING '${FULL_STAGE}';
-  "
+echo "   Attempting to create application..."
+if run_sql "
+  CREATE APPLICATION ${APP_NAME}
+    FROM APPLICATION PACKAGE ${APP_PACKAGE}
+    USING '${FULL_STAGE}';
+" 2>/dev/null; then
   echo "✅  Application created"
 else
-  echo "   Upgrading existing application..."
+  echo "   Application already exists, upgrading..."
   run_sql "ALTER APPLICATION ${APP_NAME} UPGRADE USING '${FULL_STAGE}';"
   echo "✅  Application upgraded"
 fi
