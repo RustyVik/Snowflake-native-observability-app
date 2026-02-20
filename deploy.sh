@@ -114,6 +114,9 @@ for f in "${NATIVE_APP_DIR}"/scripts/*.sql; do
 done
 
 echo "   📁 streamlit/"
+echo "   📄 streamlit/environment.yml"
+run_sql "PUT file://${NATIVE_APP_DIR}/streamlit/environment.yml ${FULL_STAGE}/streamlit/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+
 echo "   📄 streamlit/Home.py"
 run_sql "PUT file://${NATIVE_APP_DIR}/streamlit/Home.py ${FULL_STAGE}/streamlit/ AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
 
@@ -129,21 +132,19 @@ banner "STEP 3: Verifying Staged Files"
 run_sql "LIST ${FULL_STAGE}/ PATTERN='.*';"
 echo "✅  Stage contents verified"
 
-# ── Step 4: Create or upgrade the application ────────────────────────────
+# ── Step 4: Deploy the application ───────────────────────────────────────
 banner "STEP 4: Installing Application"
 
-echo "   Attempting to create application..."
-if run_sql "
-  CREATE APPLICATION IF NOT EXISTS ${APP_NAME}
+echo "   Dropping existing application (if any)..."
+run_sql "DROP APPLICATION IF EXISTS ${APP_NAME} CASCADE;" || true
+
+echo "   Creating application..."
+run_sql "
+  CREATE APPLICATION ${APP_NAME}
     FROM APPLICATION PACKAGE ${APP_PACKAGE}
     USING '${FULL_STAGE}';
-"; then
-  echo "✅  Application created"
-else
-  echo "   Application already exists, upgrading..."
-  run_sql "ALTER APPLICATION ${APP_NAME} UPGRADE USING '${FULL_STAGE}';"
-  echo "✅  Application upgraded"
-fi
+"
+echo "✅  Application created"
 
 # ── Step 5: Smoke tests (optional) ───────────────────────────────────────
 if [ "$RUN_SMOKE" = true ]; then

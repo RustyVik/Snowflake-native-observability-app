@@ -229,20 +229,19 @@ jobs:
           snow sql --connection OBSERVABILITYAPP -q \
             "LIST @${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE/ PATTERN='.*';"
 
-      - name: Create or upgrade application
+      - name: Deploy application
         run: |
-          echo "Attempting to create application ${APP_NAME}..."
-          CREATE_OUTPUT=$(snow sql --connection OBSERVABILITYAPP -q "
-            CREATE APPLICATION IF NOT EXISTS ${APP_NAME}
+          echo "Dropping existing application (if any)..."
+          snow sql --connection OBSERVABILITYAPP -q \
+            "DROP APPLICATION IF EXISTS ${APP_NAME} CASCADE;" || true
+
+          echo "Creating application ${APP_NAME}..."
+          snow sql --connection OBSERVABILITYAPP -q "
+            CREATE APPLICATION ${APP_NAME}
               FROM APPLICATION PACKAGE ${APP_PACKAGE}
               USING '@${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE';
-          " 2>&1) && echo "✅ $CREATE_OUTPUT" || {
-            echo "CREATE returned: $CREATE_OUTPUT"
-            echo "Attempting upgrade instead..."
-            snow sql --connection OBSERVABILITYAPP -q \
-              "ALTER APPLICATION ${APP_NAME} UPGRADE USING '@${APP_PACKAGE}.STAGE_CONTENT.APP_STAGE';"
-            echo "✅ Application upgraded successfully"
-          }
+          "
+          echo "✅ Application created successfully"
 
       - name: Verify application health
         run: |
